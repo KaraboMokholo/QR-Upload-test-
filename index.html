@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QR Upload - Home</title>
+  <link rel="stylesheet" href="style.css"/>
+  <!-- QRCode.js from CDN -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h1>QR File Sharing</h1>
+
+  <div id="auth-section">
+    <h2>Register</h2>
+    <p style="text-align:center; font-size:0.9em; color:#666; margin-bottom:20px;">
+      This is a browser demo — all data is saved only in your browser (localStorage). 
+      Use "Logout & Reset Demo" later to clear everything and start over.
+    </p>
+    <form id="registerForm">
+      <label>Email</label>
+      <input type="email" id="email" required placeholder="you@example.com"/>
+
+      <label>Password</label>
+      <input type="password" id="password" required minlength="6"/>
+
+      <button type="submit">Register & Get QR</button>
+    </form>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+    <h2>Your Dashboard</h2>
+    <p>Welcome back, <span id="userEmail"></span></p>
+    
+    <button id="logoutBtn" style="background:#d93025; margin-bottom:24px;">Logout & Reset Demo</button>
+    
+    <div id="qrcode"></div>
+
+    <h3>Files received so far</h3>
+    <div id="gallery" class="preview-gallery"></div>
+  </div>
+
+  <p style="text-align:center; margin-top:30px;">
+    <a href="upload.html">Go to upload page (demo)</a>
+  </p>
+</div>
+
+<script src="script.js"></script>
+<script>
+// ────────────────────────────────────────────────
+const registerForm = document.getElementById('registerForm');
+const authSection = document.getElementById('auth-section');
+const dashboard = document.getElementById('dashboard');
+const userEmailEl = document.getElementById('userEmail');
+const gallery = document.getElementById('gallery');
+const logoutBtn = document.getElementById('logoutBtn');
+
+function showDashboard(user) {
+  authSection.style.display = 'none';
+  dashboard.style.display = 'block';
+  userEmailEl.textContent = user.email;
+  generateQRCode(user.uid);
+
+  // Show existing uploads
+  gallery.innerHTML = '';
+  const uploads = getUploadsForUser(user.uid);
+  if (uploads.length === 0) {
+    gallery.innerHTML = '<p style="grid-column:1/-1;text-align:center;">No files yet</p>';
+  } else {
+    uploads.forEach(file => {
+      const div = document.createElement('div');
+      div.className = 'preview-item';
+
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = file.dataUrl;
+        img.alt = file.name;
+        div.appendChild(img);
+      } else if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.src = file.dataUrl;
+        video.controls = true;
+        div.appendChild(video);
+      } else {
+        const link = document.createElement('a');
+        link.href = file.dataUrl;
+        link.download = file.name;
+        link.textContent = `📄 ${file.name}`;
+        div.appendChild(link);
+      }
+
+      gallery.appendChild(div);
+    });
+  }
+}
+
+// Check if already "logged in"
+const currentUser = getCurrentUser();
+if (currentUser) {
+  showDashboard(currentUser);
+}
+
+// Register handler
+registerForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+
+  if (!email || !password) return alert('Please fill all fields');
+
+  // Fake UID
+  const uid = 'user_' + Date.now().toString(36);
+
+  const user = { uid, email };
+  setCurrentUser(user);
+
+  alert('Registered! Your QR is ready.');
+  showDashboard(user);
+});
+
+// Logout / Reset handler
+logoutBtn.addEventListener('click', () => {
+  if (confirm('This will delete all demo data (your account + all uploaded files) from this browser. Continue?')) {
+    localStorage.clear();  // Clears EVERYTHING in localStorage for this site
+    location.reload();    // Reload to show fresh register form
+  }
+});
+
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #f4f7fa;
+  color: #333;
+  line-height: 1.6;
+  padding: 20px;
+}
+
+.container {
+  max-width: 600px;
+  margin: 0 auto;
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+}
+
+h1, h2 {
+  text-align: center;
+  margin-bottom: 24px;
+  color: #1a73e8;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+label {
+  font-weight: 500;
+}
+
+input, button {
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 16px;
+}
+
+button {
+  background: #1a73e8;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+button:hover {
+  background: #1669c1;
+}
+
+#qrcode {
+  margin: 24px auto;
+  text-align: center;
+}
+
+.preview-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.preview-item {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fafafa;
+}
+
+.preview-item img, .preview-item video {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+}
+
+.preview-item audio,
+.preview-item a {
+  display: block;
+  padding: 10px;
+  text-align: center;
+}
+
+.message {
+  text-align: center;
+  margin: 20px 0;
+  padding: 12px;
+  border-radius: 6px;
+}
+
+.success { background: #e6ffed; color: #0f5132; }
+.error   { background: #f8d7da; color: #842029; }
