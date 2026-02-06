@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard - QR Upload</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+
+  <style>
+    /* Reuse most of your existing styles from index.html */
+    :root {
+      --red: #dc2626;
+      --navy: #1e3a8a;
+      --black: #111111;
+      --white: #ffffff;
+      --gray-light: #f9fafb;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: var(--gray-light);
+      color: var(--black);
+      margin: 0;
+      line-height: 1.6;
+    }
+    .container { width: 90%; max-width: 1280px; margin: 0 auto; padding: 0 1rem; }
+
+    /* Navbar (same as index) */
+    nav {
+      position: fixed;
+      top: 0; left: 0; width: 100%;
+      background: white;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      z-index: 1000;
+      padding: 1rem 0;
+    }
+    .nav-container { display: flex; justify-content: space-between; align-items: center; }
+    .logo img { height: 40px; }
+    .nav-links { display: flex; gap: 2.5rem; align-items: center; }
+    .nav-links a { font-weight: 500; color: var(--black); text-decoration: none; }
+    .nav-links a:hover { color: var(--red); }
+    .mobile-menu { display: none; font-size: 1.8rem; cursor: pointer; }
+
+    /* Auth & Dashboard container */
+    .auth-dashboard-container {
+      padding: 140px 0 60px;
+      min-height: 80vh;
+    }
+    .auth-card, .dashboard-content {
+      background: white;
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .auth-card { max-width: 480px; }
+    h2 { text-align: center; margin-bottom: 1.5rem; }
+
+    /* Form styles */
+    label { display: block; margin: 1rem 0 0.5rem; font-weight: 500; }
+    input {
+      width: 100%;
+      padding: 0.9rem;
+      border: 1px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+    .cta-button {
+      width: 100%;
+      padding: 1rem;
+      background: var(--red);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 1.5rem 0 1rem;
+    }
+    .secondary-btn {
+      width: 100%;
+      padding: 1rem;
+      background: transparent;
+      border: 2px solid var(--navy);
+      color: var(--navy);
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Dashboard layout */
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .qr-gallery-grid {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 2rem;
+    }
+    #qrcode { margin: 1.5rem auto; text-align: center; }
+    #gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 1.2rem;
+    }
+    #gallery > div {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    #gallery img, #gallery video { width: 100%; display: block; }
+
+    @media (max-width: 768px) {
+      .qr-gallery-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; flex-direction: column; position: absolute; top: 100%; left: 0; width: 100%; background: white; padding: 2rem; }
+      .nav-links.active { display: flex; }
+      .mobile-menu { display: block; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="container nav-container">
+      <div class="logo">
+        <a href="index.html"><img src="logo.png" alt="QR Upload"></a>
+      </div>
+      <div class="nav-links" id="navLinks">
+        <a href="index.html#features">Features</a>
+        <a href="index.html#how">How It Works</a>
+        <a href="index.html#occasions">Occasions</a>
+        <a href="dashboard.html" style="color:var(--red);">Dashboard</a>
+      </div>
+      <div class="mobile-menu" id="mobileMenu">☰</div>
+    </div>
+  </nav>
+
+  <div class="auth-dashboard-container container">
+    <!-- Auth form (shown when not logged in) -->
+    <div id="authSection" class="auth-card">
+      <h2>Login or Register</h2>
+      <form id="authForm">
+        <label>Email</label>
+        <input type="email" id="email" required autocomplete="email"/>
+
+        <label>Password</label>
+        <input type="password" id="password" required minlength="6" autocomplete="current-password"/>
+
+        <button type="button" id="registerBtn" class="cta-button">Register & Pay</button>
+        <button type="button" id="loginBtn" class="secondary-btn">Login</button>
+      </form>
+    </div>
+
+    <!-- Dashboard (shown when logged in) -->
+    <div id="dashboardSection" class="dashboard-content" style="display:none;">
+      <div class="dashboard-header">
+        <div>
+          <h2>Your Event Dashboard</h2>
+          <p>Logged in as <span id="userEmail"></span></p>
+        </div>
+        <button id="logoutBtn" style="background:#dc2626; color:white; padding:0.8rem 1.8rem; border:none; border-radius:8px; cursor:pointer; font-weight:600;">
+          Logout
+        </button>
+      </div>
+
+      <div style="margin: 2rem 0; text-align: center; background: #f8f9fa; padding: 1.5rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+  <h3 style="margin-bottom: 1rem; color: var(--navy);">Event Name</h3>
+  
+  <input 
+    id="eventNameInput" 
+    type="text" 
+    placeholder="e.g. Karabo's Wedding 2026" 
+    style="width: 100%; max-width: 500px; padding: 0.9rem; font-size: 1.1rem; border: 1px solid #d1d5db; border-radius: 8px; margin-bottom: 1rem;"
+  />
+  
+  <button 
+    id="saveEventNameBtn" 
+    style="padding: 0.8rem 2rem; background: var(--red); color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 1.1rem;"
+  >
+    Save Event Name
+  </button>
+
+  <p id="currentEventNameDisplay" style="margin-top: 1.5rem; font-size: 1.4rem; font-weight: 700; color: var(--navy); min-height: 2rem;">
+    Loading event name...
+  </p>
+</div>
+
+      
+
+      <div class="qr-gallery-grid">
+        <div>
+          <h3>Your QR Code</h3>
+          <div id="qrcode"></div>
+        </div>
+
+        <div>
+          <h3>Event Gallery</h3>
+          <div style="margin: 2rem 0; text-align: center;">
+  <p id="uploadCountText" style="font-weight: 600; font-size: 1.2rem; margin-bottom: 0.8rem; color: var(--navy);">
+    Loading upload count...
+  </p>
+  
+  <div style="background: #e5e7eb; border-radius: 999px; height: 12px; width: 100%; max-width: 500px; margin: 0 auto; overflow: hidden;">
+    <div id="progressFillBar" style="background: var(--red); height: 100%; width: 0%; transition: width 0.5s ease;"></div>
+  </div>
+</div>
+          <div id="gallery"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Your existing Firebase + Paystack + QR + Gallery script -->
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBib4LUDGsEfqBvfnvZbnisicu9Ix0v9Uo",
+    authDomain: "qr-upload-app-197fe.firebaseapp.com",
+    projectId: "qr-upload-app-197fe",
+    storageBucket: "qr-upload-app-197fe.firebasestorage.app",
+    messagingSenderId: "425886605550",
+    appId: "1:425886605550:web:60de264c60264d018953ff"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+
+  const authSection = document.getElementById('authSection');
+  const dashboardSection = document.getElementById('dashboardSection');
+  const userEmailEl = document.getElementById('userEmail');
+  const gallery = document.getElementById('gallery');
+  const logoutBtn = document.getElementById('logoutBtn');
+
+  function generateQRCode(uid) {
+    const qrContainer = document.getElementById('qrcode');
+    qrContainer.innerHTML = '';
+    const uploadUrl = `${window.location.origin}/upload.html?uid=${uid}`;
+    new QRCode(qrContainer, {
+      text: uploadUrl,
+      width: 220,
+      height: 220
+    });
+    const p = document.createElement('p');
+    p.innerHTML = `<small>Share: ${uploadUrl}</small>`;
+    p.style.textAlign = 'center';
+    qrContainer.appendChild(p);
+  }
+
+  function renderGallery(uploads) {
+    gallery.innerHTML = '';
+    if (!uploads || uploads.length === 0) {
+      gallery.innerHTML = '<p style="text-align:center; color:#666; padding:2rem;">No uploads yet — share your QR code with guests!</p>';
+      return;
+    }
+    uploads.forEach(file => {
+      const div = document.createElement('div');
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = file.url;
+        div.appendChild(img);
+      } else if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.src = file.url;
+        video.controls = true;
+        div.appendChild(video);
+      } else {
+        const a = document.createElement('a');
+        a.href = file.url;
+        a.textContent = `📄 ${file.name}`;
+        a.download = file.name;
+        a.style.display = 'block';
+        a.style.padding = '1rem';
+        a.style.textAlign = 'center';
+        div.appendChild(a);
+      }
+      gallery.appendChild(div);
+    });
+  }
+
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      authSection.style.display = 'none';
+      dashboardSection.style.display = 'block';
+      userEmailEl.textContent = user.email;
+      generateQRCode(user.uid);
+
+      // Load and display current event name
+      db.collection('users').doc(user.uid).onSnapshot(doc => {
+        if (doc.exists) {
+          const eventName = doc.data().event_name || 'No event name set yet';
+          document.getElementById('currentEventNameDisplay').textContent = eventName;
+          document.getElementById('eventNameInput').value = eventName; // pre-fill the input
+        } else {
+          document.getElementById('currentEventNameDisplay').textContent = 'No event name set yet';
+        }
+      });
+
+      // Save event name when button is clicked
+      document.getElementById('saveEventNameBtn').addEventListener('click', () => {
+        const newName = document.getElementById('eventNameInput').value.trim();
+        
+        if (!newName) {
+          alert('Please enter an event name');
+          return;
+        }
+
+        db.collection('users').doc(user.uid).set({
+          event_name: newName
+        }, { merge: true })
+        .then(() => {
+          alert('Event name saved successfully!');
+        })
+        .catch(error => {
+          alert('Error saving event name: ' + error.message);
+        });
+      });
+
+      // Real-time gallery + upload count + progress bar
+      db.collection('uploads')
+        .where('userId', '==', user.uid)
+        .onSnapshot(snapshot => {
+          const uploads = [];
+          snapshot.forEach(doc => uploads.push(doc.data()));
+          renderGallery(uploads);
+
+          // ── NEW: Upload count + progress bar ──
+          const currentCount = uploads.length;
+
+          db.collection('users').doc(user.uid).get().then(userDoc => {
+            let displayText = '';
+            let percent = 0;
+
+            if (!userDoc.exists) {
+              displayText = `${currentCount} uploaded (Plan not found)`;
+            } else {
+              const limit = userDoc.data().photos_limit || 'unlimited';
+
+              if (limit === 'unlimited') {
+                displayText = `${currentCount} uploaded (Unlimited)`;
+                percent = 0; // no progress for unlimited
+              } else {
+                displayText = `${currentCount} / ${limit} uploaded`;
+                percent = (currentCount / limit) * 100;
+                if (percent > 100) percent = 100;
+              }
+            }
+
+            document.getElementById('uploadCountText').textContent = displayText;
+            document.getElementById('progressFillBar').style.width = `${percent}%`;
+          }).catch(err => {
+            console.error('Error loading user plan for progress:', err);
+            document.getElementById('uploadCountText').textContent = `${currentCount} uploaded (Error loading limit)`;
+          });
+        });
+    } else {
+      authSection.style.display = 'block';
+      dashboardSection.style.display = 'none';
+    }
+  });
+
+  // Paystack + Register
+  const urlParams = new URLSearchParams(window.location.search);
+  const plan = urlParams.get('plan') || 'unlimited';
+  const amountInCents = parseInt(urlParams.get('amount')) || 9900;
+
+  const planInfo = document.createElement('p');
+  planInfo.style.textAlign = 'center';
+  planInfo.style.color = '#dc2626';
+  planInfo.style.fontWeight = '600';
+  planInfo.style.margin = '1rem 0';
+  planInfo.textContent = `You selected: ${plan} photos – R${(amountInCents / 100)}`;
+  document.getElementById('authForm').insertBefore(planInfo, document.getElementById('registerBtn'));
+
+  document.getElementById('registerBtn').addEventListener('click', () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value.trim();
+
+    if (!email || !password) {
+      alert('Please fill in both email and password');
+      return;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const planFromUrl = urlParams.get('plan');
+    const amountFromUrl = urlParams.get('amount');
+
+    let finalPlan = planFromUrl || 'unlimited';
+    let finalAmount = 9900;
+
+    if (amountFromUrl && !isNaN(parseInt(amountFromUrl))) {
+      finalAmount = parseInt(amountFromUrl);
+    }
+
+    const isFree = (finalAmount === 0 || finalPlan === 'free');
+
+    const createAccount = () => {
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(cred => {
+          const photosLimit = isFree ? 5 : 'unlimited';
+
+          db.collection('users').doc(cred.user.uid).set({
+            plan: finalPlan,
+            photos_limit: photosLimit,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+          }, { merge: true });
+
+          alert('Account created successfully! Welcome to your dashboard.');
+        })
+        .catch(err => {
+          alert('Error creating account:\n' + err.message);
+        });
+    };
+
+    if (isFree) {
+      createAccount();
+    } else {
+      const PAYSTACK_PUBLIC_KEY = 'pk_test_753a47c57b6c80ec1412b731b5f1af41e143ef30';
+
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: email,
+        amount: finalAmount,
+        currency: 'ZAR',
+        ref: 'reg-' + Math.floor(Math.random() * 1000000000 + 1),
+        firstname: 'User',
+        lastname: '',
+        onClose: () => {
+          alert('Payment window was closed.');
+        },
+        callback: (response) => {
+          alert('Payment successful! Reference: ' + response.reference);
+          createAccount();
+        }
+      });
+
+      handler.openIframe();
+    }
+  });
+
+  // Login
+  document.getElementById('loginBtn').addEventListener('click', () => {
+    const email = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    if (!email || !password) return alert('Fill all fields');
+
+    auth.signInWithEmailAndPassword(email, password)
+      .catch(err => alert('Login failed: ' + err.message));
+  });
+
+  // Logout
+  logoutBtn.addEventListener('click', () => auth.signOut());
+
+  // Mobile menu
+  document.getElementById('mobileMenu').addEventListener('click', () => {
+    const links = document.getElementById('navLinks');
+    links.classList.toggle('active');
+    this.textContent = links.classList.contains('active') ? '✕' : '☰';
+  });
+</script>
+</body>
+</html>

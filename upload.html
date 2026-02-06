@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Upload Your Photos & Videos</title>
+  <link rel="stylesheet" href="style.css"/>  <!-- assuming you have a shared style.css -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+
+
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f9fafb;
+      margin: 0;
+      padding: 20px;
+      color: #111;
+    }
+    .container {
+      max-width: 600px;
+      margin: 40px auto;
+      background: white;
+      padding: 32px;
+      border-radius: 16px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+    }
+    h1 {
+      text-align: center;
+      color: #1e3a8a;
+      margin-bottom: 1.5rem;
+    }
+    #uploadForm {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    label {
+      font-weight: 600;
+      color: #374151;
+    }
+    input[type="file"] {
+      padding: 12px;
+      border: 2px dashed #d1d5db;
+      border-radius: 12px;
+      background: #f9fafb;
+    }
+    button {
+      background: #dc2626;
+      color: white;
+      padding: 14px;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #b91c1c;
+    }
+    #message {
+      padding: 16px;
+      border-radius: 12px;
+      margin: 1rem 0;
+      text-align: center;
+      font-weight: 500;
+    }
+    .success { background: #d1fae5; color: #065f46; }
+    .error   { background: #fee2e2; color: #991b1b; }
+    .preview-gallery {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 12px;
+      margin-top: 2rem;
+    }
+    .preview-item {
+      background: #f3f4f6;
+      padding: 8px;
+      border-radius: 8px;
+      text-align: center;
+      font-size: 0.9rem;
+      word-break: break-all;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Upload Your Photos & Videos</h1>
+
+  <form id="uploadForm">
+    <label for="files">Choose files (photos, videos, PDFs...)</label>
+    <input type="file" id="files" multiple accept="image/*,video/*,.pdf,.doc,.docx,.txt"/>
+    <button type="submit">Upload Now</button>
+  </form>
+
+  <div id="message" style="display:none;"></div>
+  <div id="preview" class="preview-gallery"></div>
+</div>
+
+<script>
+  // Firebase setup
+  const firebaseConfig = {
+    apiKey: "AIzaSyBib4LUDGsEfqBvfnvZbnisicu9Ix0v9Uo",
+    authDomain: "qr-upload-app-197fe.firebaseapp.com",
+    projectId: "qr-upload-app-197fe",
+    storageBucket: "qr-upload-app-197fe.firebasestorage.app",
+    messagingSenderId: "425886605550",
+    appId: "1:425886605550:web:60de264c60264d018953ff"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const storage = firebase.storage();
+  const db = firebase.firestore();
+
+  firebase.auth().signInAnonymously().catch(console.error);
+
+
+  // Get UID from URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const targetUid = urlParams.get('uid');
+
+  const form = document.getElementById('uploadForm');
+  const message = document.getElementById('message');
+  const preview = document.getElementById('preview');
+
+  if (!targetUid) {
+    message.textContent = 'Invalid link — missing user ID.';
+    message.className = 'message error';
+    message.style.display = 'block';
+    form.style.display = 'none';
+    return;
+  }
+
+  // Form submit - prevent reload!
+  form.addEventListener('submit', async function(e) {
+    e.preventDefault();
+    alert("FORM SUBMITTED"); // This stops the page from reloading
+
+    const files = document.getElementById('files').files;
+    if (files.length === 0) {
+      alert('Please choose at least one file first');
+      return;
+    }
+
+    message.style.display = 'none';
+    preview.innerHTML = '';
+
+    // Show message that we're trying
+    message.textContent = 'Uploading... please wait';
+    message.className = 'message';
+    message.style.display = 'block';
+
+    for (const file of files) {
+      try {
+        // Show we're working on this file
+        const status = document.createElement('div');
+        status.className = 'preview-item';
+        status.textContent = `Uploading ${file.name}...`;
+        preview.appendChild(status);
+
+        // Upload file to Storage
+        const fileName = `${Date.now()}_${file.name}`;
+        const ref = storage.ref(`uploads/${targetUid}/${fileName}`);
+        await ref.put(file);
+
+        // Get URL
+        const url = await ref.getDownloadURL();
+
+        // Save to Firestore (we'll fix rules next if needed)
+        await db.collection('uploads').add({
+          userId: targetUid,
+          name: file.name,
+          type: file.type || 'unknown',
+          url: url,
+          uploadedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+
+        // Success
+        status.textContent = `✓ ${file.name} uploaded!`;
+        status.style.color = '#065f46';
+      } catch (err) {
+        console.error('Error uploading', file.name, ':', err);
+        const status = document.createElement('div');
+        status.className = 'preview-item';
+        status.style.color = '#991b1b';
+        status.textContent = `✗ ${file.name} failed: ${err.message || 'Unknown error'}`;
+        preview.appendChild(status);
+      }
+    }
+
+    message.textContent = 'All done! Thank you 🎉';
+    message.className = 'message success';
+  });
+</script>
+</body>
+</html>

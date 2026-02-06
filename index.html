@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QR Upload - Collect Every Event Moment</title>
+  <meta name="description" content="Gather photos & videos from every guest with one QR code. No apps needed. Live gallery for weddings, parties & more.">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/> <!-- optional icons -->
+  <!-- Your existing CDNs -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+
+  <style>
+    :root {
+      --red: #dc2626;
+      --navy: #1e3a8a;
+      --black: #111111;
+      --white: #ffffff;
+      --gray-light: #f9fafb;
+      --gray: #6b7280;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: 'Poppins', sans-serif; 
+      background: var(--white); 
+      color: var(--black); 
+      line-height: 1.6; 
+    }
+    html, body {
+    width: 100%;
+    overflow-x: hidden;
+}
+
+    .container { width: 90%; max-width: 1280px; margin: 0 auto; }
+    h1, h2, h3 { line-height: 1.2; }
+    h1 { font-size: 3.5rem; font-weight: 800; }
+    h2 { font-size: 2.8rem; font-weight: 700; text-align: center; margin-bottom: 2rem; }
+    h3 { font-size: 1.8rem; font-weight: 600; }
+    p { font-size: 1.1rem; color: #4b5563; }
+
+    /* Navbar */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background: var(--white);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      z-index: 1000;
+      padding: 1rem 0;
+    }
+    .nav-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .logo img { height: 40px; width: auto; }
+    .nav-links {
+      display: flex;
+      gap: 2.5rem;
+      align-items: center;
+    }
+    .nav-links a {
+      font-weight: 500;
+      color: var(--black);
+      transition: color 0.3s;
+    }
+    .nav-links a:hover { color: var(--red); }
+    .auth-buttons a {
+      padding: 0.7rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    .login { color: var(--black); }
+    .login:hover { color: var(--red); }
+    .signup {
+      background: var(--red);
+      color: var(--white);
+    }
+    .signup:hover { background: #b91c1c; }
+    .mobile-menu { display: none; font-size: 1.8rem; cursor: pointer; }
+
+    /* Hero */
+    #hero {
+      padding: 180px 0 120px;
+      text-align: center;
+      background: linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url('background.jpg') center center / cover no-repeat;
+      color: var(--white);
+    }
+    .hero-content { max-width: 900px; margin: 0 auto; }
+    .hero-content h1 { margin-bottom: 1.2rem; }
+    .hero-content p { font-size: 1.4rem; color: #f0f0f0; margin-bottom: 2.5rem; }
+    .cta-button {
+      display: inline-block;
+      background: var(--red);
+      color: var(--white);
+      padding: 1rem 2.5rem;
+      border-radius: 8px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      transition: background 0.3s;
+    }
+    .cta-button:hover { background: #b91c1c; }
+    .hero-image {
+      margin-top: 5rem;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      max-width: 100%;
+    }
+
+    /* Sections */
+    section { padding: 100px 0; }
+    .section-alt { background: var(--gray-light); }
+
+    /* Features */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+    .feature-card {
+      background: var(--white);
+      padding: 2.5rem 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+      transition: transform 0.3s;
+    }
+    .feature-card:hover { transform: translateY(-8px); }
+    .feature-card h3 { color: var(--navy); margin: 1.2rem 0; }
+
+    /* Steps */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 2.5rem;
+    }
+    .step { text-align: center; }
+    .step-number {
+      width: 70px;
+      height: 70px;
+      background: var(--red);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 0 auto 1.2rem;
+    }
+
+    .pricing-section {
+      background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .pricing-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--red), transparent);
+    }
+    .price-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 2rem;
+      max-width: 1000px;
+      margin: 4rem auto 0;
+    }
+    .price-card {
+      background: var(--white);
+      border-radius: 20px;
+      padding: 2.5rem 1.5rem;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+      transition: all 0.4s ease;
+      position: relative;
+      border: 2px solid transparent;
+      overflow: hidden;
+    }
+    .price-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: var(--gray);
+    }
+    .price-card.popular {
+      transform: translateY(-20px);
+      border-color: var(--red);
+      box-shadow: 0 25px 60px rgba(220,38,38,0.15);
+    }
+    .price-card.popular::before {
+      background: var(--red);
+      height: 6px;
+    }
+    .price-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 50px rgba(0,0,0,0.12);
+    }
+    .price-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: var(--red);
+      color: white;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .price-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.5rem; color: var(--navy); }
+    .price-limit { font-size: 2.2rem; font-weight: 800; color: var(--red); margin-bottom: 1rem; }
+    .price-features {
+      list-style: none;
+      text-align: left;
+      margin: 1.5rem 0 2rem;
+    }
+    .price-features li {
+      padding: 0.5rem 0;
+      color: var(--gray);
+      font-size: 1rem;
+    }
+    .price-features li i { color: var(--red); margin-right: 0.5rem; }
+    .price-cta {
+      width: 100%;
+      padding: 1rem;
+      background: var(--red);
+      color: white;
+      border: none;
+      border-radius: 12px;
+      font-size: 1.1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .price-cta:hover { background: #b91c1c; }
+    .price-cta:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .value-note {
+      margin-top: 3rem;
+      padding: 2rem;
+      background: rgba(220,38,38,0.05);
+      border-radius: 12px;
+      border-left: 4px solid var(--red);
+    }
+    .value-note h3 { color: var(--red); margin-bottom: 0.5rem; }
+
+    /* Occasions */
+    .occasions-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 2rem;
+    }
+    .occasion-card {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.1);
+    }
+    .occasion-card img {
+      transition: transform 0.6s ease;
+      width: 100%;
+      height: 320px;
+      object-fit: cover;
+    }
+    .occasion-card:hover img { transform: scale(1.08); }
+    .occasion-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: linear-gradient(transparent, rgba(0,0,0,0.75));
+      color: white;
+      padding: 2.5rem 1.5rem 1.5rem;
+      text-align: center;
+    }
+    .occasion-overlay h3 { font-size: 2rem; }
+
+    /* Mockups */
+    .mockups {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 3rem;
+      margin-top: 3rem;
+    }
+    .mockups img {
+      border-radius: 20px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.2);
+      max-width: 520px;
+    }
+
+    /* Auth & Dashboard (your existing) */
+    .auth-section, .dashboard { padding: 120px 0; }
+    .auth-card {
+      background: white;
+      padding: 40px;
+      max-width: 480px;
+      margin: 0 auto;
+      border-radius: 16px;
+      box-shadow: 0 15px 50px rgba(0,0,0,0.1);
+    }
+    #dashboard { display: none; }
+
+    /* FAQ */
+    .faq-item {
+      background: white;
+      margin-bottom: 1.2rem;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+    }
+    .faq-question {
+      padding: 1.8rem 2rem;
+      background: var(--navy);
+      color: white;
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 1.2rem;
+    }
+    .faq-answer {
+      padding: 0 2rem;
+      max-height: 0;
+      overflow: hidden;
+      transition: all 0.4s ease;
+      background: #f8fafc;
+    }
+    .faq-answer.open { padding: 2rem; max-height: 400px; }
+
+    /* Footer */
+    footer {
+      background: var(--navy);
+      color: white;
+      padding: 80px 0 40px;
+    }
+    .footer-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 3rem;
+      margin-bottom: 4rem;
+    }
+    .footer-links h4 { margin-bottom: 1.4rem; color: var(--red); font-size: 1.2rem; }
+    .footer-links a { display: block; margin-bottom: 0.9rem; opacity: 0.9; transition: opacity 0.3s; }
+    .footer-links a:hover { opacity: 1; }
+    .copyright { text-align: center; opacity: 0.8; font-size: 0.95rem; }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      h1 { font-size: 3rem; }
+      h2 { font-size: 2.4rem; }
+    }
+    @media (max-width: 768px) {
+      .nav-links { 
+        display: none; 
+        flex-direction: column; 
+        position: absolute; 
+        top: 100%; 
+        left: 0; 
+        width: 100%; 
+        background: white; 
+        padding: 2rem; 
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1); 
+      }
+      .nav-links.active { display: flex; }
+      .mobile-menu { display: block; }
+      .auth-buttons { margin-top: 1.8rem; flex-direction: column; gap: 1rem; }
+      #hero { padding: 140px 0 80px; }
+      .hero-content h1 { font-size: 2.6rem; }
+      .mockups img { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav>
+    <div class="container nav-container">
+      <div class="logo">
+        <img src="logo.png" alt="QR Upload Logo">
+      </div>
+      <div class="nav-links" id="navLinks">
+        <a href="#features">Features</a>
+        <a href="#how">How It Works</a>
+        <a href="#occasions">Occasions</a>
+        <div class="auth-buttons">
+          <a href="dashboard.html" target="_blank" class="login">Log In</a>
+          <a href="#auth-section" class="signup">Get Started</a>
+        </div>
+      </div>
+      <div class="mobile-menu" id="mobileMenu">☰</div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section id="hero">
+    <div class="container">
+      <div class="hero-content">
+        <h1>The #1 Event Photo Sharing Platform</h1>
+        <p>Gather every photo & video from your guests into one beautiful digital album — no apps, no hassle. Just share a QR code.</p>
+        <a href="#auth-section" class="cta-button">Create Your Event Free</a>
+      </div>
+      <img src="mockup2.png" alt="App on phone and tablet" class="hero-image">
+    </div>
+  </section>
+
+  <!-- Features / Why -->
+  <section class="section-alt" id="features">
+    <div class="container">
+      <h2>Why Choose QR Upload?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <h3>No Apps Required</h3>
+          <p>Guests upload instantly via QR code or link — works for everyone, no downloads needed.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Live Gallery</h3>
+          <p>See photos & videos appear in real-time as your event unfolds.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Private & Secure</h3>
+          <p>Your memories stay private — only shared with people you invite.</p>
+        </div>
+        <div class="feature-card">
+          <h3>Easy Access Forever</h3>
+          <p>All uploads saved in your dashboard for download anytime.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section id="how">
+    <div class="container">
+      <h2>How It Works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Create Event</h3>
+          <p>Sign up, pay once, and get your unique QR code.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>Share QR</h3>
+          <p>Print it, display it, or send the link to guests.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Guests Upload</h3>
+          <p>They scan & add photos/videos from their phones.</p>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <h3>Enjoy Memories</h3>
+          <p>Watch live gallery & download everything later.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING SECTION -->
+  <section class="pricing-section" id="pricing">
+    <div class="container">
+      <h2>Simple, Transparent Pricing</h2>
+      <p style="font-size: 1.3rem; color: var(--gray); max-width: 600px; margin: 0 auto 4rem;">Choose your plan or get <strong>UNLIMITED uploads</strong> with our one-time R99 registration</p>
+      
+      <div class="price-grid">
+        <!-- Free Plan -->
+        <div class="price-card">
+          <div class="price-badge">FREE</div>
+          <h3 class="price-title">Starter</h3>
+          <div class="price-limit">5 Photos</div>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> Basic QR Code</li>
+            <li><i class="fas fa-check"></i> Image uploads only</li>
+            <li><i class="fas fa-times" style="color:#ef4444;"></i> No videos</li>
+            <li><i class="fas fa-times" style="color:#ef4444;"></i> No live gallery</li>
+          </ul>
+            <a href="dashboard.html?plan=free&amount=0" class="price-cta" target="_blank">Get Started Free</a>
+        </div>
+
+        <!-- 50 Pics -->
+        <div class="price-card">
+          <h3 class="price-title">Personal</h3>
+          <div class="price-limit">50 Photos</div>
+          <span style="font-size: 3rem; font-weight: 800; color: var(--red);">R150</span>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> Photos + Videos</li>
+            <li><i class="fas fa-check"></i> Live gallery</li>
+            <li><i class="fas fa-check"></i> 30-day access</li>
+            <li><i class="fas fa-times" style="color:#ef4444;"></i> 1 event only</li>
+          </ul>
+          <a href="dashboard.html?plan=50&amount=15000" class="price-cta" target="_blank">Choose Plan</a>
+        </div>
+
+        <!-- 150 Pics (POPULAR) -->
+        <div class="price-card popular">
+          <div class="price-badge">MOST POPULAR</div>
+          <h3 class="price-title">Event</h3>
+          <div class="price-limit">150 Photos</div>
+          <span style="font-size: 3rem; font-weight: 800; color: var(--red);">R250</span>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> Unlimited videos</li>
+            <li><i class="fas fa-check"></i> Full dashboard</li>
+            <li><i class="fas fa-check"></i> Download ZIP</li>
+            <li><i class="fas fa-check"></i> 90-day access</li>
+          </ul>
+          <a href="dashboard.html?plan=150&amount=25000" class="price-cta" target="_blank">Choose Plan</a>
+        </div>
+
+        <!-- 500 Pics -->
+        <div class="price-card">
+          <h3 class="price-title">Pro</h3>
+          <div class="price-limit">500 Photos</div>
+          <span style="font-size: 3rem; font-weight: 800; color: var(--red);">R500</span>
+          <ul class="price-features">
+            <li><i class="fas fa-check"></i> Everything in Event</li>
+            <li><i class="fas fa-check"></i> Priority support</li>
+            <li><i class="fas fa-check"></i> Custom branding</li>
+            <li><i class="fas fa-check"></i> 1-year access</li>
+          </ul>
+          <a href="dashboard.html?plan=500&amount=50000" class="price-cta" target="_blank">Choose Plan</a>
+        </div>
+      </div>
+  </section>
+
+  <!-- Occasions -->
+  <section class="section-alt" id="occasions">
+    <div class="container">
+      <h2>Perfect for Any Occasion</h2>
+      <div class="occasions-grid">
+        <div class="occasion-card">
+          <img src="https://images.unsplash.com/photo-1519741497674-281450b3b0b0" alt="Wedding">
+          <div class="occasion-overlay"><h3>Weddings</h3></div>
+        </div>
+        <div class="occasion-card">
+          <img src="https://images.unsplash.com/photo-1464998857633-50e59fbf2fe6" alt="Birthday">
+          <div class="occasion-overlay"><h3>Birthdays</h3></div>
+        </div>
+        <div class="occasion-card">
+          <img src="https://images.unsplash.com/photo-1540575467063-178a50c2df87" alt="Corporate">
+          <div class="occasion-overlay"><h3>Corporate Events</h3></div>
+        </div>
+        <div class="occasion-card">
+          <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1" alt="Graduation">
+          <div class="occasion-overlay"><h3>Graduations</h3></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mockups -->
+  <section>
+    <div class="container">
+      <h2>See It in Action</h2>
+      <div class="mockups">
+        <img src="phone-mockup.png" alt="Mobile view">
+        <img src="tablet-mockup.png" alt="Tablet view">
+      </div>
+    </div>
+  </section>
+
+  <!-- Auth Section -->
+  <section class="auth-section" id="auth-section">
+    <div class="container">
+      <div class="auth-card">
+        <h2>Login / Register</h2>
+        <form id="authForm">
+          <label>Email</label>
+          <input type="email" id="email" required style="width:100%; padding:12px; margin:8px 0; border:1px solid #ddd; border-radius:8px;"/>
+
+          <label>Password</label>
+          <input type="password" id="password" required minlength="6" style="width:100%; padding:12px; margin:8px 0 16px; border:1px solid #ddd; border-radius:8px;"/>
+
+          <button type="button" id="registerBtn" class="cta-button" style="width:100%; margin-bottom:12px;">
+            Register & Pay
+          </button>
+
+          <button type="button" id="loginBtn" style="width:100%; padding:14px; background:transparent; border:2px solid var(--navy); color:var(--navy); border-radius:8px; font-weight:600; cursor:pointer;">
+            Login
+          </button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- Dashboard (hidden until login) -->
+  <section class="dashboard" id="dashboard">
+    <div class="container">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:2rem;">
+        <div>
+          <h2>Your Event Dashboard</h2>
+          <p>Logged in as <span id="userEmail"></span></p>
+        </div>
+        <button id="logoutBtn" style="background:#dc2626; color:white; padding:12px 24px; border:none; border-radius:8px; cursor:pointer; font-weight:600;">
+          Logout
+        </button>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 2fr; gap:2rem;">
+        <div style="background:white; padding:2rem; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.08);">
+          <h3>Your QR Code</h3>
+          <div id="qrcode" style="margin:1.5rem auto; text-align:center;"></div>
+        </div>
+
+        <div style="background:white; padding:2rem; border-radius:16px; box-shadow:0 10px 40px rgba(0,0,0,0.08);">
+          <h3>Event Gallery</h3>
+          <div id="gallery" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:1rem; margin-top:1.5rem;"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="section-alt">
+    <div class="container">
+      <h2>Frequently Asked Questions</h2>
+      <div class="faq-item">
+        <div class="faq-question">Do guests need an app? <span>▼</span></div>
+        <div class="faq-answer">No — guests just scan the QR code or click the link and upload from their browser.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Is it secure and private? <span>▼</span></div>
+        <div class="faq-answer">Yes, uploads go only to your private Firebase storage. Only you and people with the link can access.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">What file types are supported? <span>▼</span></div>
+        <div class="faq-answer">Photos (jpg, png, etc.), videos, and common documents like PDF.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-question">Can I see uploads live? <span>▼</span></div>
+        <div class="faq-answer">Yes — the gallery updates in real-time as guests upload.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <div class="logo">
+            <img src="logo.png" alt="QR Upload" style="height:30px;">
+          </div>
+          <p style="margin-top:1rem;">Collect every moment from your event guests — simple, secure, no apps.</p>
+        </div>
+        <div class="footer-links">
+          <h4>Product</h4>
+          <a href="#features">Features</a>
+          <a href="#how">How It Works</a>
+          <a href="#occasions">Occasions</a>
+        </div>
+        <div class="footer-links">
+          <h4>Company</h4>
+          <a href="#">About</a>
+          <a href="#">Contact</a>
+        </div>
+        <div class="footer-links">
+          <h4>Legal</h4>
+          <a href="#">Privacy Policy</a>
+          <a href="#">Terms of Service</a>
+        </div>
+      </div>
+      <div class="copyright">© 2026 QR Upload. All rights reserved.</div>
+    </div>
+  </footer>
+
+  <!-- Your original script (unchanged) -->
+  <script>
+    // ── Firebase config (unchanged - keep this as is) ──
+    const firebaseConfig = {
+      apiKey: "AIzaSyBib4LUDGsEfqBvfnvZbnisicu9Ix0v9Uo",
+      authDomain: "qr-upload-app-197fe.firebaseapp.com",
+      projectId: "qr-upload-app-197fe",
+      storageBucket: "qr-upload-app-197fe.firebasestorage.app",
+      messagingSenderId: "425886605550",
+      appId: "1:425886605550:web:60de264c60264d018953ff"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    const authSection = document.getElementById('auth-section');
+    const dashboard = document.getElementById('dashboard');
+    const userEmailEl = document.getElementById('userEmail');
+    const gallery = document.getElementById('gallery');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    function generateQRCode(uid) {
+      const qrContainer = document.getElementById('qrcode');
+      qrContainer.innerHTML = '';
+      const uploadUrl = `${window.location.origin}/upload.html?uid=${uid}`;
+      new QRCode(qrContainer, {
+        text: uploadUrl,
+        width: 220,
+        height: 220
+      });
+      const p = document.createElement('p');
+      p.innerHTML = `<small>Share this: ${uploadUrl}</small>`;
+      p.style.textAlign = 'center';
+      qrContainer.appendChild(p);
+    }
+
+    function renderGallery(uploads) {
+      gallery.innerHTML = '';
+      if (!uploads || uploads.length === 0) {
+        gallery.innerHTML = '<p style="text-align:center; color:#666;">No files yet — share your QR code!</p>';
+        return;
+      }
+      uploads.forEach(file => {
+        const div = document.createElement('div');
+        div.style.borderRadius = '12px';
+        div.style.overflow = 'hidden';
+        div.style.boxShadow = '0 4px 12px rgba(0,0,0,0.1)';
+        if (file.type.startsWith('image/')) {
+          const img = document.createElement('img');
+          img.src = file.url;
+          img.style.width = '100%';
+          img.style.display = 'block';
+          div.appendChild(img);
+        } else if (file.type.startsWith('video/')) {
+          const video = document.createElement('video');
+          video.src = file.url;
+          video.controls = true;
+          video.style.width = '100%';
+          div.appendChild(video);
+        } else {
+          const a = document.createElement('a');
+          a.href = file.url;
+          a.textContent = `📄 ${file.name}`;
+          a.download = file.name;
+          a.style.padding = '1rem';
+          a.style.display = 'block';
+          a.style.textAlign = 'center';
+          div.appendChild(a);
+        }
+        gallery.appendChild(div);
+      });
+    }
+
+    // Auth state listener (unchanged)
+    auth.onAuthStateChanged(user => {
+      if (user) {
+        authSection.style.display = 'none';
+        dashboard.style.display = 'block';
+        userEmailEl.textContent = user.email;
+        generateQRCode(user.uid);
+
+        db.collection('uploads')
+          .where('userId', '==', user.uid)
+          .orderBy('uploadedAt', 'desc')
+          .get()
+          .then(snapshot => {
+            const uploads = [];
+            snapshot.forEach(doc => uploads.push(doc.data()));
+            renderGallery(uploads);
+          })
+          .catch(err => console.error('Load error:', err));
+
+        db.collection('uploads')
+          .where('userId', '==', user.uid)
+          .onSnapshot(snapshot => {
+            const uploads = [];
+            snapshot.forEach(doc => uploads.push(doc.data()));
+            renderGallery(uploads);
+          });
+      } else {
+        authSection.style.display = 'block';
+        dashboard.style.display = 'none';
+      }
+    });
+
+    // ── Paystack registration popup (unchanged) ──
+    document.getElementById('registerBtn').addEventListener('click', () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        alert('Please fill email and password');
+        return;
+      }
+
+      const PAYSTACK_PUBLIC_KEY = 'pk_test_753a47c57b6c80ec1412b731b5f1af41e143ef30';
+
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: email,
+        amount: 9900,
+        currency: 'ZAR',
+        ref: 'reg-' + Math.floor((Math.random() * 1000000000) + 1),
+        firstname: 'Test',
+        lastname: '',
+        onClose: () => {
+          alert('Payment window closed — you can try again.');
+        },
+        callback: (response) => {
+          alert('Payment successful! Reference: ' + response.reference);
+          console.log('Paystack response:', response);
+
+          auth.createUserWithEmailAndPassword(email, password)
+            .then(cred => {
+              alert('Account created successfully! Welcome!');
+            })
+            .catch(err => {
+              alert('Error creating account: ' + err.message);
+              console.error('Firebase error:', err);
+            });
+        }
+      });
+
+      handler.openIframe();
+    });
+
+    // Login (unchanged)
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      if (!email || !password) return alert('Fill all fields');
+
+      auth.signInWithEmailAndPassword(email, password)
+        .then(() => console.log('Logged in'))
+        .catch(err => alert('Error: ' + err.message));
+    });
+
+    // Logout (unchanged)
+    logoutBtn.addEventListener('click', () => {
+      auth.signOut();
+    });
+
+    // Mobile menu toggle
+    const mobileMenu = document.getElementById('mobileMenu');
+    const navLinks = document.getElementById('navLinks');
+    mobileMenu.addEventListener('click', () => {
+      navLinks.classList.toggle('active');
+      mobileMenu.textContent = navLinks.classList.contains('active') ? '✕' : '☰';
+    });
+
+    // FAQ accordion
+    document.querySelectorAll('.faq-question').forEach(item => {
+      item.addEventListener('click', () => {
+        const answer = item.nextElementSibling;
+        answer.classList.toggle('open');
+        item.querySelector('span').textContent = answer.classList.contains('open') ? '▲' : '▼';
+      });
+    });
+  </script>
+</body>
+</html>
